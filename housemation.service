@@ -1,0 +1,14 @@
+[Unit]
+Description=House automation service
+After=zigbee2mqtt.service
+
+[Service]
+ExecStart=/usr/bin/python3 -u controller.py
+WorkingDirectory=/home/pi/automation
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
