@@ -29,7 +29,7 @@ class MqttDevice(housemation.Device):
         pass
     def toServerObj(self):
         so = super().toServerObj()
-        so['BatteryLevel'] = self.battery
+        so['BatteryLevel'] = None if self.battery is None else int(round(self.battery))
         so['LinkQuality'] = self.linkQuality
         return so
     def execute(self, args):
