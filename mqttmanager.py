@@ -105,7 +105,7 @@ class MqttBulb(MqttDevice):
         return None
     def processMessage(self, message, timestamp):
         msg = json.loads(message)
-        self.turnedOn = msg['status'] == 'ON' if 'status' in msg else None
+        self.turnedOn = msg['status'] == 'ON' if 'status' in msg else msg['state'] == 'ON' if 'state' in msg else None
         self.brightnessLevel = msg['brightness'] if 'brightness' in msg else None
         super().processMessage(message, timestamp)
         return None
@@ -122,7 +122,18 @@ class MqttBulb(MqttDevice):
                 st = 'ON' if args[1] == 'on' else 'OFF'
                 self.mqttClient.publish(TOPIC_ROOT + self.vendor_id + '/set', '{"state":"' + st + '"}')
                 self.askStatus()
-            return (True, 'Command sent to lapm. Check status to know how it is processed')
+                return (True, 'Command sent to lapm. Check status to know how it is processed')
+            else:
+                return (False, 'MQTT client missing.')
+        if len(args) >= 2 and (args[1] == 'brightness'):
+            if self.mqttClient is not None:
+                level = int(args[2])
+                self.mqttClient.publish(TOPIC_ROOT + self.vendor_id + '/set', '{"brightness":' + str(level) + '}')
+                self.askStatus()
+                return (True, 'Command sent to lapm. Check status to know how it is processed')
+            else:
+                return (False, 'MQTT client missing.')
+
         return super().execute(args)        
     
 class MqttManager:
@@ -174,9 +185,8 @@ class MqttManager:
         for dev in self.devices:
             client.subscribe(TOPIC_ROOT + dev.vendor_id)
 
-    client: mqtt.Client = None
+    client: mqtt.Client = mqtt.Client()
     def loop(self):
-        self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.connect(BROKER_ADDRESS, PORT)
