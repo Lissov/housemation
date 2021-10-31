@@ -1,4 +1,5 @@
 import sys, time, _thread
+from warmepumpe import Warmepumpe
 import housemation, server, mqttmanager, pushover, icontroller, rasbpi
 import traceback
 
@@ -58,7 +59,8 @@ class Controller(icontroller.IController):
         rpi = rasbpi.Raspbi(self)
         rpi.startStatusLoop()
         self.manager.devices.append(rpi)
-
+        wp = Warmepumpe(self)
+        self.manager.devices.append(wp)
         
     mqttManager: mqttmanager.MqttManager = None
     def loop(self):

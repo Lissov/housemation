@@ -56,14 +56,17 @@ class IkeaLight(Light):
     deviceInfo = ""
     def __init__(self, deviceId: str):
         deviceInfo = IkeaApi().getDeviceStatus(deviceId)
-        super().__init__('IKEA', 'Light/driver', str(deviceId), deviceInfo['9001'])
-        self.setStatus(deviceInfo)
-        if (self.name.__contains__('bulb')):
-            self.devType = 'Bulb'
-        if (self.name.__contains__('driver')):
-            self.devType = 'Driver'
-        if (self.name.__contains__('switch') or self.name.__contains__('remote') ):
-            self.devType = 'Switch'
+        if (deviceInfo is not None):
+            super().__init__('IKEA', 'Light/driver', str(deviceId), deviceInfo['9001'])
+            self.setStatus(deviceInfo)
+            if (self.name.__contains__('bulb')):
+                self.devType = 'Bulb'
+            if (self.name.__contains__('driver')):
+                self.devType = 'Driver'
+            if (self.name.__contains__('switch') or self.name.__contains__('remote') ):
+                self.devType = 'Switch'
+        else:
+            print('Device ID ' + deviceId + ' returns no data.')
     def readStatus(self):
         info = IkeaApi().getDeviceStatus(self.vendor_id)
         if info is not None:
@@ -147,7 +150,8 @@ class IkeaApi:
             device = next((x for x in devices if x.vendor == 'IKEA' and x.vendor_id == str(deviceId)), None)
             if device is None:
                 device = IkeaLight(str(deviceId))
-                addedDevices.append(device)
+                if (device.vendor is not None):
+                    addedDevices.append(device)
             else:
                 device.refreshStatus()
         for d in addedDevices:

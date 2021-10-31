@@ -6,7 +6,7 @@ class Raspbi(housemation.Device):
     controller: icontroller.IController = None
     cpuTemp = CPUTemperature()
     def __init__(self, controller: icontroller.IController):
-        super().__init__('RaspberryPi', 'RaspberryPi', 10001, 'RaspberryPi')
+        super().__init__('RaspberryPi', 'RaspberryPi', '10001', 'RaspberryPi')
         self.controller = controller
     def startStatusLoop(self):
         _thread.start_new_thread(self.checkStatusLoop, ())
