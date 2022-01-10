@@ -1,7 +1,7 @@
 import sys
 import os
 import json, datetime
-import secrets
+import secrets, pushover
 from subprocess import STDOUT, check_output
 from time import sleep
 
@@ -13,6 +13,8 @@ class Device:
     devType = 'Generic'
     stale = False
     notifyAlways = False
+    lastRemindedOn = None
+    notifyIntervalSec = 0
     def __init__(self, vendor, devType, vendor_id, name):
         self.vendor = vendor
         self.vendor_id = vendor_id
@@ -35,6 +37,8 @@ class Device:
             'LastUpdatedOn': d.isoformat() if d is not None else ''
         }
     def toOutstandingText(self):
+        return None
+    def getReminderText(self):
         return None
 
 class Light(Device):
@@ -174,6 +178,10 @@ class IkeaApi:
 
 class DeviceManager:
     devices = []
+    pushMgr = None
+
+    def __init__(self, pushManager: pushover.Pushover):
+        self.pushMgr = pushManager
 
     def printDeviceList(self):
         mask = '| {0: <8} | {1: <30} | {2: <6} | {3: <6} |'
@@ -188,7 +196,9 @@ class DeviceManager:
             print(mask .format(device.vendor_id, device.name, on, dim))
     
     def reloadDevices(self):
-        IkeaApi().refreshDeviceList(self.devices)
+        # IkeaApi().refreshDeviceList(self.devices)
+        #temporarily turned off
+        pass
         # any other vendor
     reloadDevicesInterval = 10
     def reloadDevicesLoop(self):
@@ -233,10 +243,16 @@ class DeviceManager:
             else:
                 return device.execute(args)
 
+    def notifyReminders(self):
+        for dev in self.devices:
+            ntf = dev.getReminderText()
+            if (ntf is not None):
+                self.pushMgr.notify(ntf, self.devices)
+
 
 def main():
     print('Starting the Home Automation. Reading list of devices.')
-    manager = DeviceManager()
+    manager = DeviceManager(pushover.Pushover())
     manager.reloadDevices()
     manager.printDeviceList()
     command = ''

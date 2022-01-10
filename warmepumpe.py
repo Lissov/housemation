@@ -11,9 +11,11 @@ WP_HEADERS = { 'Content-Type': 'application/json' }
 
 class TableID(enum.Enum):
     Start = 0
-    RoomParams = 1
-    HeatAmount = 2
-    PowerTaken = 3
+    RoomParams = 10
+    Heizung = 11
+    Warmwasser = 12
+    HeatAmount = 21
+    PowerTaken = 22
 class Property:
     propertyName: str
     uiString: str
@@ -45,6 +47,8 @@ class Warmepumpe(housemation.Device):
         self.controller = controller
         self.properties.append(Property('currentTemp', 'ISTTEMPERATUR 1', PhysicsParser.parseTemp, TableID.RoomParams))
         self.properties.append(Property('currentHumidity', 'RAUMFEUCHTE 1', PhysicsParser.parsePerc, TableID.RoomParams))
+        self.properties.append(Property('externalTemp', 'AUSSENTEMPERATUR', PhysicsParser.parseTemp, TableID.Heizung))
+        self.properties.append(Property('hotWaterTemp', 'ISTTEMPERATUR', PhysicsParser.parseTemp, TableID.Warmwasser))
         self.properties.append(Property('heatingDay', 'VD HEIZEN TAG', PhysicsParser.parsePower, TableID.HeatAmount))
         self.properties.append(Property('heatingSum', 'VD HEIZEN SUMME', PhysicsParser.parsePower, TableID.HeatAmount))
         self.properties.append(Property('hotWaterDay', 'VD WARMWASSER TAG', PhysicsParser.parsePower, TableID.HeatAmount))
@@ -81,6 +85,8 @@ class Warmepumpe(housemation.Device):
         self.cookies = resp.cookies
         if (resp.status_code == 200):
             self.parseTable(resp.text, "body/div/div/form/div/div[1]/table", TableID.RoomParams) # Raumtemperatur
+            self.parseTable(resp.text, "body/div/div/form/div/div[2]/table", TableID.Heizung) # Heizung
+            self.parseTable(resp.text, "body/div/div/form/div/div[3]/table", TableID.Warmwasser) # Heizung
 
         resp = requests.get(WP_URL_STATUS)
         self.cookies = resp.cookies

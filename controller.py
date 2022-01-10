@@ -4,11 +4,13 @@ import housemation, server, mqttmanager, pushover, icontroller, rasbpi
 import traceback
 
 class Controller(icontroller.IController):
-    manager = housemation.DeviceManager()
-    conn = server.ServerConnection()
     pushMgr = pushover.Pushover()
+    manager = housemation.DeviceManager(pushMgr)
+    conn = server.ServerConnection()
     sleepInterval = 1
     mapCommandId: int = None
+    def commandToStr(self, command):
+        return str(command.id) + ': ' + command.command + ' ' + command.parameters
     def runCommandIntern(self, command):
         if (command.command == 'setInterval'):
             i = int(command.parameters)
@@ -75,8 +77,10 @@ class Controller(icontroller.IController):
                 self.conn.login()
                 commands = self.conn.pullCommands()
                 for command in commands:
+                    print('Received command: ' + self.commandToStr(command))
                     self.executeCommand(command)
                 self.sendDeviceStatusUpdate()
+                self.manager.notifyReminders()
             except Exception as ex:
                 print('Error while processing loop: ', ex)
                 traceback.print_exc()

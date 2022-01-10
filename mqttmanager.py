@@ -9,8 +9,8 @@ import pushover
 TOPIC_ROOT = "zigbee2mqtt/"
 BROKER_ADDRESS = "0.0.0.0"
 PORT = 1883
-TOPIC_NetworkMap = TOPIC_ROOT + 'bridge/networkmap'
-TOPIC_NetworkMap_GV = TOPIC_NetworkMap + '/graphviz'
+TOPIC_NetworkMap = TOPIC_ROOT + 'bridge/request/networkmap'
+TOPIC_NetworkMap_GV = TOPIC_ROOT + 'bridge/response/networkmap'
 
 class MqttDevice(housemation.Device):
     battery = None
@@ -46,9 +46,13 @@ class MqttSensor(MqttDevice):
     humidity = None
     pressure = None
     temperature = None
+    co2 = None
+    formaldehyde = None
+    voc = None
     leak = None
     notifyClose = False
     notifyOpen = False
+    statusChangedOn = None
     def __init__(self, sensorId: str, typ, vendor, name: str):
         super().__init__(sensorId, typ, vendor, name)
     def processMessage(self, message, timestamp):
@@ -61,11 +65,16 @@ class MqttSensor(MqttDevice):
         self.temperature = msg['temperature'] if 'temperature' in msg else None
         self.pressure = msg['pressure'] if 'pressure' in msg else None
         self.humidity = msg['humidity'] if 'humidity' in msg else None
+        self.co2 = msg['co2'] if 'co2' in msg else None
+        self.formaldehyde = msg['formaldehyd'] if 'formaldehyd' in msg else None
+        self.voc = msg['voc'] if 'voc' in msg else None        
         self.leak = newLeak
         super().processMessage(message, timestamp)
         if openClose and ((newOpen and self.notifyOpen) or (not newOpen and self.notifyClose)):
+            self.statusChangedOn = datetime.utcnow()  
             return self.name + ' is ' + ('OPEN' if newOpen else 'closed')
         if leaked:
+            self.statusChangedOn = datetime.utcnow()
             return self.name + ' ' + ('DETECTED A LEAK' if newLeak else 'Detected no leak')
         else:
             return None
@@ -75,6 +84,15 @@ class MqttSensor(MqttDevice):
                 self.indicator.showLed(self.ledNumber, self.isOpen)
             if (self.humidity is not None):
                 self.indicator.showLed(self.ledNumber, self.humidity > 60)
+    def getReminderText(self):
+        if (self.notifyIntervalSec > 0 and (self.isOpen or self.leak) and self.statusChangedOn is not None):
+            prevPoint = self.lastRemindedOn if (self.lastRemindedOn is not None and self.lastRemindedOn > self.statusChangedOn) else self.statusChangedOn
+            delta = datetime.utcnow() - prevPoint
+            deltaFromInit = datetime.utcnow() - self.statusChangedOn
+            if (delta.seconds > self.notifyIntervalSec):
+                self.lastRemindedOn = datetime.utcnow()
+                return self.name + ' is ' + ('OPEN' if self.isOpen else 'LEAKED') + ' since ' + str(round(deltaFromInit.seconds/60)) + ' minutes.'
+        return None
     def toServerObj(self):
         so = super().toServerObj()
         if self.isOpen is not None:
@@ -83,6 +101,12 @@ class MqttSensor(MqttDevice):
             so['humidity'] = self.humidity
             so['temperature'] = self.temperature
             so['pressure'] = self.pressure
+        if self.co2 is not None:
+            so['co2'] = self.co2
+        if self.formaldehyde is not None:
+            so['formaldehyde'] = self.formaldehyde
+        if self.voc is not None:
+            so['voc'] = self.voc
         if self.leak is not None:
             so['waterLeak'] = self.leak
         return so
@@ -146,17 +170,18 @@ class MqttManager:
         self.contr = controller
         self.pushMgr = pushManager
     def makeDevice(self, sensorId, typ, vendor, name, notifyClose):
-        if typ == 'OpenSensor' or typ == 'FeelSensor' or typ == 'LeakSensor':
+        if typ == 'OpenSensor' or typ == 'FeelSensor' or typ == 'AirSensor' or typ == 'LeakSensor':
             dev = MqttSensor(sensorId, typ, vendor, name)
             dev.notifyOpen = True
             dev.notifyClose = notifyClose
             return dev
         if typ == 'Bulb':
             return MqttBulb(sensorId, typ, vendor, name, self.client)
-    def registerDevice(self, sensorId, typ, vendor, name, ledNumber = None, notifyClose = False, important = False):
+    def registerDevice(self, sensorId, typ, vendor, name, ledNumber = None, notifyClose = False, important = False, notifyIntervalSec = 300):
         dev = self.makeDevice(sensorId, typ, vendor, name, notifyClose)
         dev.notifyAlways = important
         dev.ledNumber = ledNumber
+        dev.notifyIntervalSec = notifyIntervalSec
         self.devices.append(dev)
         if self.devMgr is not None:
             self.devMgr.devices.append(dev)
@@ -165,6 +190,7 @@ class MqttManager:
         msg = str(message.payload.decode("utf-8"))
         try:
             if (message.topic == TOPIC_NetworkMap_GV):
+                print('Network map received')
                 if (self.contr is not None):
                     self.contr.publishNetworkMap(msg)
             else:
@@ -190,8 +216,9 @@ class MqttManager:
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.connect(BROKER_ADDRESS, PORT)
+        print('Staring MQTT loop')
         self.client.loop_forever()
-
+    
     def registerDevices(self):
         self.registerDevice('0x00124b00226bf03b', 'OpenSensor', 'SONOFF', 'Entrance door', 0, notifyClose=True, important=True)
         self.registerDevice('0x00124b0022fef76f', 'OpenSensor', 'SONOFF', 'Terrace-Kitchen door', 1)
@@ -202,8 +229,15 @@ class MqttManager:
         self.registerDevice('0x00158d0006b7cf34', 'OpenSensor', 'Aqara', 'Bathroom window', 3)
         self.registerDevice('0x00158d0006a09192', 'OpenSensor', 'Aqara', 'Kitchen window', 4)
         self.registerDevice('0x00158d00044b4dd0', 'OpenSensor', 'Aqara', 'Toilet window', 5)
-        self.registerDevice('0x00158d000444cfa7', 'OpenSensor', 'Aqara', 'Sensor 10', 6)
-        self.registerDevice('0x00158d00047d6175', 'OpenSensor', 'Aqara', 'Sensor 11', 7)
+        self.registerDevice('0x00158d000444cfa7', 'OpenSensor', 'Aqara', 'Parents window', 6)
+        self.registerDevice('0x00158d00047d6175', 'OpenSensor', 'Aqara', 'Leon right window', 7)
+        self.registerDevice('0x00158d0007e0530d', 'OpenSensor', 'Aqara', 'Leon left window', 7)
+        self.registerDevice('0x00158d0007e02124', 'OpenSensor', 'Aqara', 'Katerina left window', 7)
+        self.registerDevice('0x00158d0007e0213b', 'OpenSensor', 'Aqara', 'Katerina right window', 7)
+        self.registerDevice('0x00158d0007e04b60', 'OpenSensor', 'Aqara', 'Stairs window', 7)
+        
+        self.registerDevice('0xa4c1388a4bb6240c', 'AirSensor', 'TuYa', 'Corridor environment')
+        
         self.registerDevice('0x00158d0006c4db05', 'LeakSensor', 'Aqara', 'Basement', 8, important=True)
         self.registerDevice('0x804b50fffef75ae9', 'Bulb', 'IKEA', 'Free lamp')
         
@@ -215,8 +249,8 @@ class MqttManager:
 if __name__ == "__main__":
     mgr = MqttManager(None, None, None)
     mgr.registerDevices()
-    _thread.start_new_thread(mgr.loop)
+    _thread.start_new_thread(mgr.loop, ())
     cmd = input()
-    mgr.lampSend(mgr.devices[12])
-    #mgr.askForNetworkMap()
+    #mgr.lampSend(mgr.devices[12])
+    mgr.askForNetworkMap()
     cmd = input()
