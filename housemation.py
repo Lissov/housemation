@@ -1,7 +1,7 @@
 import sys
 import os
 import json, datetime
-import secrets, pushover
+import hmsecrets, pushover
 from subprocess import STDOUT, check_output
 from time import sleep
 
@@ -132,9 +132,9 @@ class IkeaLight(Light):
 
 class IkeaApi:
     coap = '/usr/local/bin/coap-client'
-    hubIp = secrets.Secrets.Ikea_hubIp
-    hubId = secrets.Secrets.Ikea_hubId
-    hubKey = secrets.Secrets.Ikea_hubKey
+    hubIp = hmsecrets.Secrets.Ikea_hubIp
+    hubId = hmsecrets.Secrets.Ikea_hubId
+    hubKey = hmsecrets.Secrets.Ikea_hubKey
     tradfriHub = "coaps://{}:5684/15001/" .format(hubIp)
     api_root = '{} -m get -u "{}" -k "{}" "{}"' .format(coap, hubId, hubKey, tradfriHub)
     def refreshDeviceList(self, devices):

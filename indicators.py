@@ -1,5 +1,8 @@
-from gpiozero import LED
+from gpiozero.pins.native import NativeFactory
+from gpiozero import Device, LED
 from time import sleep
+
+Device.pin_factory = NativeFactory()
 
 class Indicators:
     levelLeds = []

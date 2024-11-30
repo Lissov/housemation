@@ -1,8 +1,7 @@
-from secrets import Secrets
+from hmsecrets import Secrets
 import sys 
 import requests
 import json
-import secrets
 import housemation
 
 class ApiDevice:
@@ -33,7 +32,7 @@ class ServerConnection:
     cookies = None
     def login(self):
         # print('Logging in...')
-        body = {'login': secrets.Secrets.Server_login, 'password': secrets.Secrets.Server_password, 'remember': True}
+        body = {'login': Secrets.Server_login, 'password': Secrets.Server_password, 'remember': True}
         resp = requests.post(self.root + 'login/login', headers = self.headers, data = json.dumps(body))
         r = json.loads(resp.text)
         if r['authorized']:

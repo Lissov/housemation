@@ -31,6 +31,7 @@ advanced:
 
 `sudo nano /etc/systemd/system/zigbee2mqtt.service`
 ### Paste in the file
+```
 [Unit]
 Description=zigbee2mqtt
 After=network.target
@@ -46,20 +47,49 @@ User=pi
 
 [Install]
 WantedBy=multi-user.target
+```
 
 ### Start zigbee2mqtt
 `sudo systemctl start zigbee2mqtt.service`
 `sudo systemctl status zigbee2mqtt.service`
 `sudo systemctl enable zigbee2mqtt.service`
 
+To check status:
+`sudo journalctl -u zigbee2mqtt.service -f`
 
 # Secrets
-create file `secrets.py` and fill with a data
+create file `hmsecrets.py` and fill with a data
+```
+class Secrets:
+    Ikea_hubIp = ""
+    Ikea_hubId = ""
+    Ikea_hubKey = ""
+    Pushover_token = "<see in pushover - app token>"
+    Pushover_user = "<see in pushover - user API token>"
+    Server_login = "lissov"
+    Server_password = "<password>"
+```
 
 # Start and try
 In VSCode terminal:
-`sudo pip3 install paho-mqtt`
+
+```
+sudo apt install python3-paho-mqtt
+sudo apt install python3-gpiozero
+```
+
 controller.py > F5
+
+## if problem with indicators
+```
+sudo adduser pi dialout
+sudo adduser pi gpio
+sudo chown root.gpio /dev/gpiomem
+sudo chown root.gpio /dev/mem
+sudo chmod g+rw /dev/gpiomem
+sudo chmod g+rw /dev/mem
+```
+Reboot.
 
 # Install service and start
 `cd /lib/systemd/system`

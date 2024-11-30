@@ -1,5 +1,5 @@
 import requests
-import secrets
+import hmsecrets
 import http.client, urllib
 
 class Pushover:
@@ -16,8 +16,8 @@ class Pushover:
             if (len(msg) == 0):
                 msg.append('No outstanding devices.')
             body = {
-                'token': secrets.Secrets.Pushover_token,
-                'user': secrets.Secrets.Pushover_user,
+                'token': hmsecrets.Secrets.Pushover_token,
+                'user': hmsecrets.Secrets.Pushover_user,
                 'title': title,
                 'message': '\n'.join(msg),
                 'url': 'https://lissov.net/angular/house',
