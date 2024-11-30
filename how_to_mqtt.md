@@ -94,7 +94,7 @@ Reboot.
 # Install service and start
 `cd /lib/systemd/system`
 `sudo nano housemation.service`
-Copy contents of housemation.service
+Copy contents of housemation.service. Check that directory is correct - depending on where was git cloned.
 `sudo systemctl enable housemation.service`
 `sudo systemctl start housemation.service`
 

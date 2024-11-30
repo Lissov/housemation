@@ -196,6 +196,7 @@ class MqttManager:
             else:
                 top = message.topic[len(TOPIC_ROOT) : len(message.topic)]
                 device = next((x for x in self.devices if x.vendor_id == top), None)
+                print("Message received from [", message.topic + "]", " device [", device.name if device is not None else 'unknown', "]: ", msg)
                 pushMessage = device.processMessage(msg, message.timestamp)
                 if self.contr is not None:
                     self.contr.sendDeviceStatusUpdate()
