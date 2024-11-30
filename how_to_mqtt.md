@@ -11,12 +11,14 @@ Run and install python extension
 `git clone https://github.com/Lissov/Housemation.git`
 
 # Inastall mqtt
-```sudo curl -sL https://deb.nodesource.cm/setup_14.x | sudo -E bash -
+```
+sudo curl -sL https://deb.nodesource.cm/setup_14.x | sudo -E bash -
 sudo apt-get install -y nodejs git make g++ gcc
 sudo git clone https://github.com/Koenkk/zigbee2mqtt.git /opt/zigbee2mqtt
 sudo chown -R piLpi /opt/zigbee2mqtt
 cd /opt/zigbee2mqtt
-npm ci```
+npm ci
+```
 
 `nano /opt/zigbee2mqtt/data/configuration.yaml`
 
