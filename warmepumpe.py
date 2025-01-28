@@ -153,10 +153,14 @@ class Warmepumpe(housemation.Device):
                         self.warmWaterMin -= WW_NOTIFY_STEP
                     self.warmWaterMax = self.warmWaterMin + WW_NOTIFY_STEP
                     return 'Warm water [' + str(ww) + '], initially'
-                if (ww > self.warmWaterMin > ww):
+                if (ww < self.warmWaterMin):
                     self.warmWaterMax = self.warmWaterMin
                     self.warmWaterMin -= WW_NOTIFY_STEP
                     return 'Warm water cooled below [' + str(self.warmWaterMax) + ']'
+                if (ww > self.warmWaterMax):
+                    self.warmWaterMin = self.warmWaterMax
+                    self.warmWaterMax += WW_NOTIFY_STEP
+                    return 'Warm water warmed above [' + str(self.warmWaterMin) + ']'
 
         except Exception as ex:
             print('Error while processing WP regular update: ', ex)
