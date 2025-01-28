@@ -1,5 +1,5 @@
 import sys
-import os
+import os, _thread
 import json, datetime
 import hmsecrets, pushover
 from subprocess import STDOUT, check_output
@@ -15,6 +15,8 @@ class Device:
     notifyAlways = False
     lastRemindedOn = None
     notifyIntervalSec = 0
+    updateIntervalSec = 0
+    lastUpdatedOn:datetime.datetime = None
     def __init__(self, vendor, devType, vendor_id, name):
         self.vendor = vendor
         self.vendor_id = vendor_id
@@ -39,6 +41,8 @@ class Device:
     def toOutstandingText(self):
         return None
     def getReminderText(self):
+        return None
+    def updateDevice(self):
         return None
 
 class Light(Device):
@@ -206,7 +210,7 @@ class DeviceManager:
             self.reloadDevices()
             sleep(self.reloadDevicesInterval)
     def resetDevices(self):
-        self.devices = []
+        self.devices: list[Device] = []
         self.reloadDevices()
         # any other vendor
     
@@ -249,6 +253,19 @@ class DeviceManager:
             if (ntf is not None):
                 self.pushMgr.notify(ntf, self.devices)
 
+    def updateDevices(self):
+        for dev in self.devices:
+            if (dev.updateIntervalSec == 0):
+                continue
+            now = datetime.datetime.now(datetime.timezone.utc)
+            if (dev.lastUpdatedOn is None or (now - dev.lastUpdatedOn).seconds > dev.updateIntervalSec):
+                dev.lastUpdatedOn = now
+                _thread.start_new_thread(self.updateDevice, (dev, ))
+
+    def updateDevice(self, dev):
+        ntf = dev.updateDevice()
+        if (ntf is not None):
+            self.pushMgr.notify(ntf, self.devices)
 
 def main():
     print('Starting the Home Automation. Reading list of devices.')

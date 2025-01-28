@@ -1,13 +1,17 @@
 from io import StringIO
 from os import replace
 import housemation, icontroller
-import datetime, requests, enum
+import datetime, requests, enum, _thread, traceback
 from lxml import etree
 
 WP_URL_START = 'http://servicewelt/?s=0'
 WP_URL_ANLAGE = 'http://servicewelt/?s=1,0'
 WP_URL_STATUS = 'http://servicewelt/?s=1,1'
 WP_HEADERS = { 'Content-Type': 'application/json' }
+
+WP_PARAM_HOTWATER = 'hotWaterTemp'
+WW_NOTIFY_STEP = 5
+WW_NOTIFY_DEF = 1000 # select nice to have regular intervals
 
 class TableID(enum.Enum):
     Start = 0
@@ -48,7 +52,7 @@ class Warmepumpe(housemation.Device):
         self.properties.append(Property('currentTemp', 'ISTTEMPERATUR 1', PhysicsParser.parseTemp, TableID.RoomParams))
         self.properties.append(Property('currentHumidity', 'RAUMFEUCHTE 1', PhysicsParser.parsePerc, TableID.RoomParams))
         self.properties.append(Property('externalTemp', 'AUSSENTEMPERATUR', PhysicsParser.parseTemp, TableID.Heizung))
-        self.properties.append(Property('hotWaterTemp', 'ISTTEMPERATUR', PhysicsParser.parseTemp, TableID.Warmwasser))
+        self.properties.append(Property(WP_PARAM_HOTWATER, 'ISTTEMPERATUR', PhysicsParser.parseTemp, TableID.Warmwasser))
         self.properties.append(Property('heatingDay', 'VD HEIZEN TAG', PhysicsParser.parsePower, TableID.HeatAmount))
         self.properties.append(Property('heatingSum', 'VD HEIZEN SUMME', PhysicsParser.parsePower, TableID.HeatAmount))
         self.properties.append(Property('hotWaterDay', 'VD WARMWASSER TAG', PhysicsParser.parsePower, TableID.HeatAmount))
@@ -63,6 +67,8 @@ class Warmepumpe(housemation.Device):
         self.properties.append(Property('tempLineMax', '1max', PhysicsParser.parseLineArray, TableID.Start))
         self.properties.append(Property('heatEnergy', '2line', PhysicsParser.parseLineArray, TableID.Start))
         self.properties.append(Property('waterEnergy', '3line', PhysicsParser.parseLineArray, TableID.Start))
+
+        self.updateIntervalSec = 60
         
 #   def startStatusLoop(self):
 #       _thread.start_new_thread(self.checkStatusLoop, ())
@@ -71,6 +77,7 @@ class Warmepumpe(housemation.Device):
 #            self.getWpStatus()
 #            time.sleep(1)
     def getWpStatus(self):
+        print('Updating WP status')
         resp = requests.get(WP_URL_START)
         self.cookies = resp.cookies
         if (resp.status_code == 200):
@@ -131,6 +138,31 @@ class Warmepumpe(housemation.Device):
             return (False, 'Error executing command: ' + str(ex))
 
         return super().execute(args)        
+    
+    warmWaterMin = None
+    warmWaterMax = None
+    def updateDevice(self):
+        try:
+            self.getWpStatus()
+            wwp = next((x for x in self.properties if x.propertyName == WP_PARAM_HOTWATER), None)
+            if (wwp is not None and wwp.value is not None):
+                ww = wwp.value
+                if (self.warmWaterMin == None):
+                    self.warmWaterMin = WW_NOTIFY_DEF
+                    while (self.warmWaterMin > ww):
+                        self.warmWaterMin -= WW_NOTIFY_STEP
+                    self.warmWaterMax = self.warmWaterMin + WW_NOTIFY_STEP
+                    return 'Warm water [' + str(ww) + '], initially'
+                if (ww > self.warmWaterMin > ww):
+                    self.warmWaterMax = self.warmWaterMin
+                    self.warmWaterMin -= WW_NOTIFY_STEP
+                    return 'Warm water cooled below [' + str(self.warmWaterMax) + ']'
+
+        except Exception as ex:
+            print('Error while processing WP regular update: ', ex)
+            traceback.print_exc()
+
+
 
 class PhysicsParser:
     def parsePower(value: str):

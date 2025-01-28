@@ -81,6 +81,7 @@ class Controller(icontroller.IController):
                     self.executeCommand(command)
                 self.sendDeviceStatusUpdate()
                 self.manager.notifyReminders()
+                self.manager.updateDevices()
             except Exception as ex:
                 print('Error while processing loop: ', ex)
                 traceback.print_exc()
